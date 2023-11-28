@@ -14,7 +14,6 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.core.app.ActivityCompat
-import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import coil.load
 import com.achsanit.simpleweather.BuildConfig
@@ -23,6 +22,7 @@ import com.achsanit.simpleweather.databinding.ActivityMainBinding
 import com.achsanit.simpleweather.foundation.utils.DateHelper
 import com.achsanit.simpleweather.foundation.utils.LocationUtil
 import com.achsanit.simpleweather.foundation.utils.Resource
+import com.achsanit.simpleweather.foundation.utils.collectLatestState
 import com.achsanit.simpleweather.foundation.utils.makeGone
 import com.achsanit.simpleweather.foundation.utils.makeVisible
 import com.achsanit.simpleweather.foundation.utils.setCircleCropTransformation
@@ -30,8 +30,6 @@ import com.google.android.material.snackbar.Snackbar
 import com.vmadalin.easypermissions.EasyPermissions
 import com.vmadalin.easypermissions.dialogs.SettingsDialog
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
 import java.io.IOException
 import java.util.Locale
 import javax.inject.Inject
@@ -71,66 +69,64 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks {
     }
 
     private fun observeCurrentWeather() {
-        lifecycleScope.launch {
-            homeViewModel.currentWeather.collectLatest {
-                with(binding) {
-                    when (it) {
-                        is Resource.Loading -> {
-                            pbLoading.makeVisible()
-                            ivLocation.makeGone()
-                        }
-                        is Resource.Success -> {
-                            pbLoading.makeGone()
-                            ivLocation.makeVisible()
-                            it.data?.let { currentWeather ->
-                                val iconUrl =
-                                    "${BuildConfig.BASE_IMAGE_URL}${currentWeather.icon}@4x.png"
+        collectLatestState(homeViewModel.currentWeather) {
+            with(binding) {
+                when (it) {
+                    is Resource.Loading -> {
+                        pbLoading.makeVisible()
+                        ivLocation.makeGone()
+                    }
+                    is Resource.Success -> {
+                        pbLoading.makeGone()
+                        ivLocation.makeVisible()
+                        it.data?.let { currentWeather ->
+                            val iconUrl =
+                                "${BuildConfig.BASE_IMAGE_URL}${currentWeather.icon}@4x.png"
 
-                                tvTemperature.text = String.format(
-                                    resources.getString(R.string.temp_placeholder),
-                                    currentWeather.temperature.toInt()
-                                )
-                                location?.let {
-                                    tvLocation.text = locationUtil.getAddress(it.latitude, it.longitude)
-                                }
-                                ivIcon.load(iconUrl) {
-                                    setCircleCropTransformation()
-                                }
-                                tvDateTime.text =
-                                    DateHelper.formatToDate(System.currentTimeMillis())
-                                tvHumidity.text = String.format(
-                                    resources.getString(R.string.humidity_placeholder),
-                                    currentWeather.humidity
-                                )
-                                tvFeelsLike.text = String.format(
-                                    resources.getString(R.string.feels_like_placeholder),
-                                    currentWeather.feelsLike.toInt()
-                                )
-                                tvMainWeather.text = currentWeather.weather
+                            tvTemperature.text = String.format(
+                                resources.getString(R.string.temp_placeholder),
+                                currentWeather.temperature.toInt()
+                            )
+                            location?.let {
+                                tvLocation.text = locationUtil.getAddress(it.latitude, it.longitude)
                             }
-                            it.data?.latestUpdate?.let { lastUpdate ->
-                                tvLastUpdate.text = getString(
-                                    R.string.last_update_at_place_holder,
-                                    DateHelper.formatCurrentMillisTime(lastUpdate)
-                                )
+                            ivIcon.load(iconUrl) {
+                                setCircleCropTransformation()
                             }
+                            tvDateTime.text =
+                                DateHelper.formatToDate(System.currentTimeMillis())
+                            tvHumidity.text = String.format(
+                                resources.getString(R.string.humidity_placeholder),
+                                currentWeather.humidity
+                            )
+                            tvFeelsLike.text = String.format(
+                                resources.getString(R.string.feels_like_placeholder),
+                                currentWeather.feelsLike.toInt()
+                            )
+                            tvMainWeather.text = currentWeather.weather
                         }
-                        is Resource.Error -> {
-                            pbLoading.makeGone()
-                            Toast.makeText(
-                                this@MainActivity,
-                                it.message.toString(),
-                                Toast.LENGTH_SHORT
-                            ).show()
+                        it.data?.latestUpdate?.let { lastUpdate ->
+                            tvLastUpdate.text = getString(
+                                R.string.last_update_at_place_holder,
+                                DateHelper.formatCurrentMillisTime(lastUpdate)
+                            )
                         }
-                        else -> {
-                            pbLoading.makeGone()
-                            Toast.makeText(
-                                this@MainActivity,
-                                it.message.toString(),
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
+                    }
+                    is Resource.Error -> {
+                        pbLoading.makeGone()
+                        Toast.makeText(
+                            this@MainActivity,
+                            it.message.toString(),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    else -> {
+                        pbLoading.makeGone()
+                        Toast.makeText(
+                            this@MainActivity,
+                            it.message.toString(),
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 }
             }
@@ -138,26 +134,24 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks {
     }
 
     private fun observeListWeatherCity() {
-        lifecycleScope.launch {
-            homeViewModel.listWeather.collectLatest { result ->
-                with(binding) {
-                    when (result) {
-                        is Resource.Loading -> {
-                            pbListWeather.makeVisible()
+        collectLatestState(homeViewModel.listWeather) { result ->
+            with(binding) {
+                when (result) {
+                    is Resource.Loading -> {
+                        pbListWeather.makeVisible()
+                    }
+                    is Resource.Success -> {
+                        pbListWeather.makeGone()
+                        result.data?.let {
+                            listWeatherAdapter.submitData(it)
                         }
-                        is Resource.Success -> {
-                            pbListWeather.makeGone()
-                            result.data?.let {
-                                listWeatherAdapter.submitData(it)
-                            }
-                        }
+                    }
 
-                        is Resource.Error -> {
-                            pbListWeather.makeGone()
-                        }
-                        else -> {
-                            pbListWeather.makeGone()
-                        }
+                    is Resource.Error -> {
+                        pbListWeather.makeGone()
+                    }
+                    else -> {
+                        pbListWeather.makeGone()
                     }
                 }
             }
