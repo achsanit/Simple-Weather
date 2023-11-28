@@ -1,5 +1,6 @@
 package com.achsanit.simpleweather.foundation.utils
 
+import android.content.res.Configuration
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Lifecycle
@@ -31,4 +32,9 @@ fun <T> AppCompatActivity.collectLatestState(flow: Flow<T>, collect: suspend (T)
             flow.collectLatest(collect)
         }
     }
+}
+
+fun AppCompatActivity.isDarkTheme(): Boolean {
+    return this.resources.configuration.uiMode and
+            Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
 }
