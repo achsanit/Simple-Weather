@@ -3,17 +3,17 @@ package com.achsanit.simpleweather.features.home.ui
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.location.Geocoder
+import android.content.res.ColorStateList
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
-import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import coil.load
 import com.achsanit.simpleweather.BuildConfig
@@ -23,6 +23,7 @@ import com.achsanit.simpleweather.foundation.utils.DateHelper
 import com.achsanit.simpleweather.foundation.utils.LocationUtil
 import com.achsanit.simpleweather.foundation.utils.Resource
 import com.achsanit.simpleweather.foundation.utils.collectLatestState
+import com.achsanit.simpleweather.foundation.utils.isDarkTheme
 import com.achsanit.simpleweather.foundation.utils.makeGone
 import com.achsanit.simpleweather.foundation.utils.makeVisible
 import com.achsanit.simpleweather.foundation.utils.setCircleCropTransformation
@@ -30,8 +31,6 @@ import com.google.android.material.snackbar.Snackbar
 import com.vmadalin.easypermissions.EasyPermissions
 import com.vmadalin.easypermissions.dialogs.SettingsDialog
 import dagger.hilt.android.AndroidEntryPoint
-import java.io.IOException
-import java.util.Locale
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -64,8 +63,27 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks {
 
         observeCurrentWeather()
 
-        binding.rvListOtherPlace.layoutManager = LinearLayoutManager(this)
-        binding.rvListOtherPlace.adapter = listWeatherAdapter
+        with(binding) {
+            rvListOtherPlace.layoutManager = LinearLayoutManager(this@MainActivity)
+            rvListOtherPlace.adapter = listWeatherAdapter
+
+            if (isDarkTheme()) {
+                bgCloud.load(R.drawable.bg_cloud)
+                bgCloud.foregroundTintList = ColorStateList.valueOf(
+                    ContextCompat.getColor(
+                        this@MainActivity,
+                        R.color.md_theme_dark_background
+                    )
+                )
+            } else {
+                bgCloud.foregroundTintList = ColorStateList.valueOf(
+                    ContextCompat.getColor(
+                        this@MainActivity,
+                        R.color.md_theme_light_background
+                    )
+                )
+            }
+        }
     }
 
     private fun observeCurrentWeather() {
@@ -206,30 +224,6 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks {
 
     private fun getCurrentWeather(location: Location) {
         homeViewModel.getCurrentWeather(location.latitude.toString(), location.longitude.toString())
-    }
-
-    fun getAddress(lat: Double, lng: Double): String? {
-        var addressName: String? = null
-        val geocoder = Geocoder(this.applicationContext, Locale.getDefault())
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            geocoder.getFromLocation(lat, lng, 1) { list ->
-                if (list.size != 0) {
-                    addressName = list[0].locality
-                }
-            }
-        } else {
-            try {
-                val list = geocoder.getFromLocation(lat, lng, 1)
-                if (list != null && list.size != 0) {
-                    addressName = list[0].locality
-                }
-            } catch (e: IOException) {
-                e.printStackTrace()
-            } catch (e: NullPointerException) {
-                e.printStackTrace()
-            }
-        }
-        return addressName
     }
 
     fun requestAllPermission() {
